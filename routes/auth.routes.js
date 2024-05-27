@@ -4,7 +4,7 @@ const router = require("express").Router();
 const bcrypt = require("bcryptjs")
 const jwt = require("jsonwebtoken")
 
-const { isTokenValid } = require("../middlewares/auth.middlewares.js")
+const { isTokenValid, isUserAdmin } = require("../middlewares/auth.middlewares.js")
 
 // aqui van todas las rutas de autenticación
 
@@ -26,7 +26,7 @@ router.post("/signup", async (req, res, next) => {
   // 2. la contraseña deberia ser segura y fuerte
   const passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$/gm
   if (passwordRegex.test(password) === false) {
-    res.status(400).json({errorMessage: "La contraseña no es suficientemente fuerte. Require más de 8 caracteres, al menos una minuscula, una mayuscula y algun otro caracter"})
+    res.status(400).json({field: "password", errorMessage: "La contraseña no es suficientemente fuerte. Require más de 8 caracteres, al menos una minuscula, una mayuscula y algun otro caracter"})
     return // detén la ejecución de la ruta
   }
 
@@ -59,7 +59,6 @@ router.post("/signup", async (req, res, next) => {
   }
 
 })
-
 
 // POST "/api/auth/login" => recibe credenciales del usuario (email, password) y las valida. Crearemos y Enviaremos el Token.
 router.post("/login", async (req, res, next) => {
@@ -95,8 +94,9 @@ router.post("/login", async (req, res, next) => {
     // Ya hemos autenticado al usuario. Creamos el Token y lo enviamos.
     const payload = {
       _id: foundUser._id,
-      email: foundUser.email
+      email: foundUser.email,
       // cualquier informaciòn estatica del usuario deberia ir aqui
+      role: foundUser.role
     }
 
     const authToken = jwt.sign(
@@ -113,7 +113,6 @@ router.post("/login", async (req, res, next) => {
 
 })
 
-
 // GET "/api/auth/verify" => recibir el token y validarlo.
 router.get("/verify", isTokenValid, (req, res, next) => {
 
@@ -122,6 +121,24 @@ router.get("/verify", isTokenValid, (req, res, next) => {
   //! ESTO AYUDA A SABER CUANDO CREAN DOCUMENTOS, QUIEN LO ESTA CREADO, O QUIEN PUEDE EDITARLO, QUIEN PUEDE BORRARLO.
 
   res.status(200).json({payload: req.payload}) // esta info la requiere el FE
+
+})
+
+
+// ejemplo de ruta que envia información solo para usuarios logeados (privado)
+router.get("/private-route-example", isTokenValid, (req, res) => {
+
+  // el isTokenValid es lo que haría que solo usuarios logeados puedes llegar
+  // con el req.payload, el backend sabe quien es el usuario haciendo la llamada
+  console.log(req.payload)
+  res.json({data: "ejemplo información solo para usuarios logeados"})
+
+})
+
+// ejemplo de ruta solo para admins
+router.get("/admin-route-example", isTokenValid, isUserAdmin, (req, res) => {
+
+  res.json({data: "información super secreta de admin. Como conquistar el mundo"})
 
 })
 
